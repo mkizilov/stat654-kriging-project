@@ -1,0 +1,27 @@
+station_id,name,latitude,longitude,elevation,country,n_obs
+KRNM0,Ramona / Rosemont,33.0392,-116.9153,425.0,US,168
+KL080,Borrego Springs,33.259,-116.321,159.0,US,168
+KSEE0,San Diego / Town And Country Mobile Home Park,32.8262,-116.9724,118.0,US,168
+KCZZ0,Campo,32.6167,-116.4667,802.0,US,168
+72293,MCAS Miramar,32.8667,-117.15,146.0,US,168
+KCRQ0,Carlsbad / Rancho Carlsbad Trailer Park,33.1283,-117.2801,101.0,US,168
+72290,San Diego International Airport,32.7333,-117.1833,5.0,US,168
+KSDM0,San Diego / Bandini,32.5723,-116.9802,160.0,US,168
+KOKB0,Oceanside / El Camino 76 Trailer Park,33.218,-117.3515,9.0,US,168
+KF700,Murrieta/Temecula / Murrieta Hot Springs (Historical),33.5742,-117.1285,412.0,US,168
+KNFG0,Oceanside / Chappo,33.3011,-117.3551,24.0,US,168
+KHMT0,Hemet / Egan,33.734,-117.0225,461.0,US,168
+KPSP0,Palm Springs,33.8297,-116.5067,145.0,US,168
+KIPL0,Imperial,32.8342,-115.5787,-16.0,US,168
+72286,Riverside / March Air Force Base,33.9,-117.25,469.0,US,168
+KRAL0,Riverside / Arlanza,33.9519,-117.4451,250.0,US,168
+KSBD0,San Bernardino / North Norton,34.0954,-117.2349,353.0,US,157
+KAJO0,Corona,33.8977,-117.6024,163.0,US,168
+KL350,Big Bear City,34.2638,-116.856,2058.0,US,168
+KSNA0,Santa Ana / Paularino,33.6757,-117.8682,17.0,US,168
+KCNO0,Chino,33.9748,-117.6365,198.0,US,168
+69015,Twentynine Palms / Sunfair Heights,34.2962,-116.1622,625.0,US,160
+KCCB0,Cable Arpt / College Heights,34.1116,-117.6874,440.0,US,168
+KFUL0,Fullerton / Fuller Park,33.872,-117.9798,29.0,US,168
+72297,Long Beach Airport,33.8167,-118.15,17.0,US,168
+72292,Avalon Catalina Airport,33.4,-118.4167,488.0,US,166
