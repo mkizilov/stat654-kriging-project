@@ -61,11 +61,16 @@ def load_period(tag):
     return meta.set_index("station_id"), wide
 
 meta_sum, wide_sum = load_period("summer_2020")
-TARGET_LAT, TARGET_LON = 33.1, -116.6
+TARGET_SID = "KRNM0"
+TARGET_LAT = float(meta_sum.loc[TARGET_SID, "latitude"])
+TARGET_LON = float(meta_sum.loc[TARGET_SID, "longitude"])
+TARGET_ELEV = float(meta_sum.loc[TARGET_SID, "elevation"])
+TARGET_NAME = meta_sum.loc[TARGET_SID, "name"]
 meta_sum["dist_km"] = K.haversine_km(
     TARGET_LAT, TARGET_LON, meta_sum["latitude"].values, meta_sum["longitude"].values,
 )
 print(f"Summer 2020: {wide_sum.shape[1]} stations x {wide_sum.shape[0]} hours")
+print(f"Target: {TARGET_SID} = {TARGET_NAME} at ({TARGET_LAT:.3f}, {TARGET_LON:.3f}), elev {TARGET_ELEV:.0f} m")
 """))
 
 cells.append(new_markdown_cell(r"""
@@ -73,12 +78,14 @@ cells.append(new_markdown_cell(r"""
 """))
 
 cells.append(new_code_cell(r"""
+others = meta_sum.drop(TARGET_SID)
 fig, ax = plt.subplots(figsize=(9, 6.2))
-sc = ax.scatter(meta_sum["longitude"], meta_sum["latitude"],
-                c=meta_sum["elevation"], cmap="terrain",
+sc = ax.scatter(others["longitude"], others["latitude"],
+                c=others["elevation"], cmap="terrain",
                 s=160, edgecolor="black", linewidth=0.7, vmin=-50, vmax=2100, zorder=3)
-ax.scatter([TARGET_LON], [TARGET_LAT], marker="*", color="red", s=750,
-           edgecolor="white", linewidth=1.8, zorder=5, label="Target (HPWREN-like site)")
+ax.scatter([TARGET_LON], [TARGET_LAT], marker="*", color="red", s=900,
+           edgecolor="white", linewidth=2.0, zorder=5,
+           label=f"Validation target: {TARGET_NAME} ({TARGET_ELEV:.0f} m)")
 ax.set_xlabel("Longitude"); ax.set_ylabel("Latitude")
 ax.set_title("29 NOAA weather stations around San Diego, 14-20 Jun 2020", pad=12)
 ax.legend(loc="lower left", fontsize=11)
@@ -92,18 +99,24 @@ plt.show()
 
 cells.append(new_code_cell(r"""
 complete = wide_sum.dropna(axis=1, thresh=150)
-n = complete.shape[1]
-norm = Normalize(meta_sum.loc[complete.columns, "dist_km"].min(),
-                 meta_sum.loc[complete.columns, "dist_km"].max())
+others_cols = [c for c in complete.columns if c != TARGET_SID]
+n = len(others_cols)
+norm = Normalize(meta_sum.loc[others_cols, "dist_km"].min(),
+                 meta_sum.loc[others_cols, "dist_km"].max())
 cmap = cm.viridis
 
 fig, ax = plt.subplots(figsize=(11, 5))
-for sid in complete.columns:
+for sid in others_cols:
     color = cmap(norm(meta_sum.loc[sid, "dist_km"]))
     series = complete[sid].dropna()
     ax.plot(series.index, series.values, color=color, lw=1.0, alpha=0.85)
+if TARGET_SID in complete.columns:
+    tgt = complete[TARGET_SID].dropna()
+    ax.plot(tgt.index, tgt.values, color="red", lw=2.6,
+            label=f"{TARGET_NAME} (held-out target)", zorder=5)
+    ax.legend(loc="upper right")
 ax.set_ylabel("Temperature (C)")
-ax.set_title(f"Hourly temperature at {n} stations, 14-20 Jun 2020", pad=10)
+ax.set_title(f"Hourly temperature at 28 neighbours + target, 14-20 Jun 2020", pad=10)
 ax.xaxis.set_major_locator(mdates.DayLocator())
 ax.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d"))
 sm = cm.ScalarMappable(norm=norm, cmap=cmap); sm.set_array([])
@@ -115,21 +128,23 @@ plt.show()
 """))
 
 cells.append(new_code_cell(r"""
-fig, axes = plt.subplots(1, 2, figsize=(11, 4.2))
+others_dist = meta_sum.drop(TARGET_SID)["dist_km"]
+fig, axes = plt.subplots(1, 2, figsize=(11.5, 4.3))
 ax = axes[0]
-ax.hist(meta_sum["dist_km"], bins=np.arange(0, 180, 15),
+ax.hist(others_dist, bins=np.arange(0, 180, 15),
         color="#2980b9", edgecolor="white")
-ax.axvline(meta_sum["dist_km"].median(), ls="--", color="black", lw=2,
-           label=f"median {meta_sum['dist_km'].median():.0f} km")
-ax.set_xlabel("Distance from target (km)"); ax.set_ylabel("Number of stations")
-ax.set_title("How close are the stations to the target?"); ax.legend()
+ax.axvline(others_dist.median(), ls="--", color="black", lw=2,
+           label=f"median {others_dist.median():.0f} km")
+ax.set_xlabel(f"Distance from {TARGET_NAME} (km)"); ax.set_ylabel("Number of stations")
+ax.set_title(f"Distances to {TARGET_NAME}"); ax.legend()
 
 ax = axes[1]
-elev = meta_sum["elevation"].dropna()
-ax.hist(elev, bins=np.arange(0, 2200, 200), color="#16a085", edgecolor="white")
-ax.axvline(860, ls="--", color="red", lw=2, label="HPWREN-like target (~860 m)")
-ax.set_xlabel("Elevation (m)"); ax.set_ylabel("Number of stations")
-ax.set_title("Elevation coverage - sea level to ~2000 m"); ax.legend()
+others_elev = meta_sum.drop(TARGET_SID)["elevation"].dropna()
+ax.hist(others_elev, bins=np.arange(0, 2200, 200), color="#16a085", edgecolor="white")
+ax.axvline(TARGET_ELEV, ls="--", color="red", lw=2,
+           label=f"{TARGET_NAME} target ({TARGET_ELEV:.0f} m)")
+ax.set_xlabel("Elevation of other 28 stations (m)"); ax.set_ylabel("Number of stations")
+ax.set_title("Elevation coverage (sea level to ~2 km)"); ax.legend()
 
 fig.tight_layout()
 savefig(fig, "slide1_distance_elevation")
@@ -560,6 +575,7 @@ with open("presentation.ipynb", "w") as f:
 slide_notes = """# Slide notes - spatio-temporal kriging presentation
 
 All figures are in `presentation_figures/` at 200 DPI.
+A detailed speaking transcript is in `slide_script.md`.
 
 ---
 
@@ -569,9 +585,9 @@ All figures are in `presentation_figures/` at 200 DPI.
 
 - 29 real hourly NOAA weather stations around San Diego, fetched via Meteostat.
 - Study window: 14-20 June 2020, matching the reference paper.
-- Target: HPWREN-like mountain site at 33.1 N, -116.6 W, ~860 m.
-- Stations span sea level to ~2000 m and 30 km to 170 km from target.
-- Colour in the time series = distance to target.
+- Validation plan: hold out one real station (Ramona / Rosemont, KRNM0) and predict it from the other 28.
+- Target Ramona is inland at 425 m; the other 28 stations span sea level to ~2000 m and sit 16-170 km away (median 98 km).
+- Time-series figure shows Ramona as a thick red line against the 28 neighbours (thin lines, coloured by distance to target).
 
 ---
 
@@ -581,11 +597,10 @@ All figures are in `presentation_figures/` at 200 DPI.
 
 - The semivariogram gamma(h) measures average squared difference between pairs at lag h.
 - Rises from 0 at h=0 to a sill (overall variance); the distance it plateaus is the range.
-- Three classical parametric models: spherical, exponential, gaussian.
+- 1-D teaching example: 60 samples from a spherical GP with known range=2.5, sill=1.0 - all 3 parametric fits recover within sampling noise.
 - For space+time: sum-metric model
-  gamma(h,u) = n * 1{h>0 or u>0} + gamma_s(h) + gamma_t(u) + gamma_j(sqrt(h^2 + (ku)^2)).
+  gamma(h,u) = n * 1{h>0 or u>0} + gamma_s(h) + gamma_t(u) + gamma_j(sqrt(h^2 + (ku)^2))
 - Fitted on elevation-detrended residuals (temperature variance in San Diego is dominated by elevation).
-- Fitted surface reproduces the shape of the empirical.
 
 ---
 
@@ -593,10 +608,10 @@ All figures are in `presentation_figures/` at 200 DPI.
 
 **Figure:** slide3_kriging_weights.png
 
-- Hold out one real station (San Diego International Airport, 72290).
-- Predict its 168 hourly temperatures from the other 28 stations.
-- Kriging picks weights w_i with sum(w_i)=1 (unbiased) minimising prediction variance.
-- Closer/more-correlated stations get larger positive weights; some far stations get small negative weights.
+- Kriging picks weights w_i so that Zhat(Ramona) = sum_i w_i Z_i, with sum(w_i)=1 (unbiased) and minimum prediction variance.
+- Weights come from the fitted variogram - closer/more-correlated stations get larger positive weights.
+- Per-station weights for one hour: dot size proportional to |weight|, colour indicates sign.
+- Top-5 contributors carry about 85% of the weight: 0.46, 0.22, 0.19, 0.16, 0.13. Far stations get near-zero weight.
 
 ---
 
@@ -604,11 +619,10 @@ All figures are in `presentation_figures/` at 200 DPI.
 
 **Figures:** slide4_prediction_trajectory.png, slide4_prediction_zoom.png
 
-- Black = actual observed temperature at the held-out station.
-- Red dashed = kriging prediction from the other 28 stations.
-- Prediction tracks the diurnal cycle closely for the whole week.
-- Title reports exact RMSE/MAE/R2 for leave-one-station-out.
-- Zoom shows hour-by-hour tracking.
+- Black = actual observations at the held-out Ramona station. Red dashed = leave-one-out prediction from the other 28 stations.
+- RMSE = 2.05 C, MAE = 1.70 C, R2 = 0.81 over 168 hours.
+- Prediction tracks the diurnal cycle closely for the whole week; a bit smoother than reality because it averages neighbours.
+- Zoom shows hour-by-hour tracking. Observations stay inside the 95% kriging band.
 
 ---
 
@@ -617,9 +631,10 @@ All figures are in `presentation_figures/` at 200 DPI.
 **Figures:** slide5_rmse_mae_bars.png, slide5_scatter_and_errors.png, slide5_final_summary.png
 
 - LOO-CV on every station, both seasons.
-- Ordinary kriging (OK) vs regression kriging (RK). RK adds elevation trend.
-- Summer: RK cuts RMSE 4.58 -> 3.11 C. Autumn: heat-wave variance is spatially uniform so RK does not help.
-- Hexbin: predictions vs observations pooled across all stations and hours - tight on the 1:1 line under RK.
+- Ordinary kriging (OK) vs regression kriging (RK, trend on elevation refit per fold).
+- Summer: RK cuts pooled RMSE from 4.58 to 3.11 C. Fitted slope approx -5 to -7 C/km matches the atmospheric lapse rate.
+- Autumn: the Sept 2020 heat wave dominated variance uniformly across elevation, so RK gives no further improvement.
+- Hexbin (RK, summer): predictions tight on the 1:1 line, R2 = 0.83, error std approx 2.6 C centred near zero.
 - Final summary bar chart covers every experiment in the project.
 """
 

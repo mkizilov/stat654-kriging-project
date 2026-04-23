@@ -16,7 +16,7 @@ Total plan: **~10 min of speaking** across 5 content slides + title + conclusion
 
 **Say (≈20 s):**
 
-> "Today I'll walk through how we can statistically predict the temperature at a site where we do not have a sensor, using hourly observations from surrounding weather stations. The method is **spatio-temporal kriging**. The project follows the setup of Kuo, Huang and Putra in their 2021 paper that compared public weather-station data with on-site greenhouse sensors."
+> "Today I'll walk through how we can statistically predict the temperature at a site without a local sensor, using hourly observations from surrounding weather stations. The method is **spatio-temporal kriging**. The project follows the setup of Kuo, Huang and Putra in their 2021 paper that compared public weather-station data with on-site greenhouse sensors."
 
 ---
 
@@ -28,21 +28,24 @@ Total plan: **~10 min of speaking** across 5 content slides + title + conclusion
 >
 > - 29 real hourly stations (NOAA / Meteostat)
 > - Study window matches the paper: 14–20 June 2020
-> - Target: HPWREN-like mountain site at **33.1 °N, −116.6 °W, ~860 m**
-> - Elevation range across network: **sea level → ~2 000 m**
-> - Distance to target: **30–170 km** (median 82 km)
+> - **Validation plan:** hold out one real station and predict it from the other 28
+> - **Target:** Ramona / Rosemont (KRNM0, inland, 425 m)
+> - Distance from target: **16–170 km** (median 98 km)
+> - Elevation coverage: sea level → ~2 000 m
 >
 > *Images:* `slide1_station_map.png`, `slide1_time_series.png`, `slide1_distance_elevation.png`
 
-**Say (≈75 s):**
+**Say (≈80 s):**
 
-> "I pulled real hourly temperature data from 29 NOAA weather stations around San Diego, using the free Meteostat Python library. The one-week window — 14th to 20th of June 2020 — is the same window the paper used, so our results are directly comparable.
+> "I pulled real hourly temperature data from 29 NOAA weather stations around San Diego, using the free Meteostat Python library. The one-week window — 14th to 20th of June 2020 — is the same window the paper used, so the results are comparable.
 >
-> [point to the map] Here's the network. Each dot is a station, coloured by elevation: dark blue is sea level, green is a few hundred metres, and the single near-white dot at the top is a mountain peak at about 2 000 m. The red star is the target where we want to predict temperature — we chose a mountain-style location at around 860 m.
+> Our validation plan is simple: pick one real station, **pretend we have no sensor there**, predict it from the other 28 stations with kriging, and compare the prediction against what the station actually measured.
 >
-> [point to the time-series plot] All 29 stations show the expected daily cycle over 7 days, but with very different amplitudes. The coastal dark-purple stations stay fairly flat between 15 and 25 °C because of the Pacific marine layer. The inland yellow-green stations swing from about 5 °C at night to almost 40 °C at mid-day.
+> [point to the map] Red star is our chosen target — **Ramona / Rosemont**, a real NOAA station inland at about 425 m elevation. The 28 coloured dots are the neighbours we'll use as inputs, coloured by elevation. Blue is sea level, green is a few hundred metres, the single near-white dot up north is a mountain peak around 2 000 m.
 >
-> [point to the histograms] Most stations sit below 500 m, and the median station is about 82 km from the target. That terrain heterogeneity is much larger than the flat Taiwan greenhouse region in the original paper — and it turns out to matter a lot for how well kriging performs."
+> [point to the time-series plot] Here's what every station measured over the 7 days. The thick red line is Ramona — what we're trying to predict. Thin lines are the 28 neighbours, coloured by distance to Ramona. Notice how the coastal dark-purple stations stay fairly flat near 15–25 °C because of the Pacific marine layer, while the inland yellow-green stations swing from about 5 °C at night to almost 40 °C at mid-day. Ramona sits between — a clear diurnal cycle with about a 15 °C daily swing.
+>
+> [point to the histograms] The other 28 stations are between 16 and 170 km from Ramona, with a median of 98 km. Most sit below 500 m elevation, so Ramona at 425 m is well-surrounded in elevation too."
 
 ---
 
@@ -64,13 +67,13 @@ Total plan: **~10 min of speaking** across 5 content slides + title + conclusion
 
 **Say (≈90 s):**
 
-> "Before we krige anything we need a model of how temperatures are correlated across space and time. That's the semivariogram.
+> "Before we can krige anything, we need a model of how temperatures are correlated across space and time. That's the semivariogram.
 >
-> [left plot] Here's the intuition on a 1-D toy example: 60 samples drawn from a known Gaussian process. The black dots are the empirical semivariogram — we just compute the squared difference between pairs of points at each lag h, bin them, and average. You can see the textbook shape: near 0 at small lag, rises, and flattens out at a sill. The distance at which it flattens is called the range.
+> [left plot] Here's the intuition on a 1-D toy example: 60 samples from a known Gaussian process. The black dots are the empirical semivariogram — we compute the squared difference between pairs of points at each lag h, bin them, and average. You see the textbook shape: near 0 at small lag, rises, and flattens out at a sill. The distance at which it flattens is called the range.
 >
 > Three classical parametric models — spherical, exponential, gaussian — all fit well and all recover the true range of 2.5.
 >
-> [right plot] Now the same idea in 2-D on our real data: spatial lag h on the x-axis, temporal lag u on the y-axis. I use the **sum-metric** model from Kuo et al.: a sum of three component variograms plus a nugget, with an anisotropy scale k that couples space and time in units of kilometres per hour — you can see the equation on the slide.
+> [right plot] Now the same idea in 2-D on our real data: spatial lag h on the x-axis, temporal lag u on the y-axis. I use the **sum-metric** model from Kuo et al.: a sum of three component variograms plus a nugget, with an anisotropy scale k that couples space and time in units of kilometres per hour — equation on the slide.
 >
 > The left panel is the empirical estimate, the right is the fitted sum-metric model. They agree on the overall shape — low at the origin, growing with both lags.
 >
@@ -89,8 +92,7 @@ Total plan: **~10 min of speaking** across 5 content slides + title + conclusion
 > - Weights **must sum to 1** (unbiasedness)
 > - Chosen to minimise prediction variance
 > - Derived from the fitted variogram
-> - Demo: hold out **Ramona / Rosemont** (KRNM0), predict from other 28 stations
-> - Top-5 neighbours carry ≈85 % of the weight
+> - Top-5 nearest neighbours carry ≈85 % of the weight
 >
 > *Image:* `slide3_kriging_weights.png`
 
@@ -98,9 +100,7 @@ Total plan: **~10 min of speaking** across 5 content slides + title + conclusion
 
 > "Ordinary kriging predicts the target as a weighted linear combination of the surrounding observations. Two rules: the weights sum to 1 for unbiasedness, and they are chosen to minimise the prediction variance. The weights themselves come from the fitted variogram — closer and more correlated stations get bigger weights.
 >
-> [point to the map] To make this concrete, I held out one real station — Ramona / Rosemont, an inland site at about 425 m — and asked kriging to predict its temperature using only the other 28 stations. This figure shows the per-station kriging weights for a single hour.
->
-> Dot size is the magnitude of the weight, colour is the sign — red positive, blue negative. The five biggest contributors are labelled.
+> [point to the map] This figure shows the per-station kriging weights for **one hour** of the Ramona prediction. Dot size is the magnitude of the weight, colour is the sign — red positive, blue negative. The five biggest contributors are labelled.
 >
 > The single closest station gets weight 0.46. The next four get 0.22, 0.19, 0.16, and 0.13. Together the top 5 carry about 85 % of the mass. Distant stations get nearly zero weight — they're too decorrelated to help. And the weights sum to exactly 1.
 >
@@ -114,7 +114,7 @@ Total plan: **~10 min of speaking** across 5 content slides + title + conclusion
 
 > ### Leave-one-out prediction at Ramona / Rosemont
 >
-> - Target held out, predicted from the **other 28 stations**
+> - Ramona held out, predicted from the **other 28 stations** every hour
 > - 168 hours over 7 days
 > - Prediction tracks the diurnal cycle
 > - Observations stay inside the 95 % kriging band
@@ -127,11 +127,11 @@ Total plan: **~10 min of speaking** across 5 content slides + title + conclusion
 
 > "So does it actually predict well? Here's the answer.
 >
-> [full-week plot] Black is what the station actually measured over the 7 days. Red dashed is the kriging prediction, built only from the other 28 stations — the target itself was completely held out. The prediction tracks the diurnal cycle really well: cool nights around 14 °C, warm afternoons in the mid-20s. Over all 168 hours, the RMSE is **2.05 °C**, MAE is 1.70, and R² is 0.81.
+> [full-week plot] Black is what Ramona actually measured over the 7 days. Red dashed is the kriging prediction, built only from the other 28 stations — Ramona itself was completely held out. The prediction tracks the diurnal cycle really well: cool nights around 14 °C, warm afternoons in the mid-20s. Over all 168 hours, RMSE is **2.05 °C**, MAE is 1.70, and R² is 0.81.
 >
-> [zoom plot] Here's a 48-hour zoom to see the hourly tracking. The prediction is a bit smoother than reality — it's an average of neighbours, so site-specific fluctuations get dampened. The night-time lows lag slightly because warmer neighbours pull the mean up. But the shape and the timing are right, and the 95 % kriging prediction band in pink covers the real observations throughout.
+> [zoom plot] Here's a 48-hour zoom to see hourly tracking. The prediction is a bit smoother than reality — it's an average of neighbours, so site-specific fluctuations get dampened. The night-time lows lag slightly because warmer neighbours pull the mean up. But the shape and timing are right, and the 95 % kriging prediction band in pink covers the real observations throughout.
 >
-> This is the headline result: from only regional weather-station data, kriging recovers the hourly temperature trace at an arbitrary held-out site to about **2 °C RMSE**."
+> This is the headline result: from only the 28 neighbouring public weather stations, kriging recovers Ramona's hourly temperature trace to about **2 °C RMSE**."
 
 ---
 
@@ -149,7 +149,7 @@ Total plan: **~10 min of speaking** across 5 content slides + title + conclusion
 > | Summer 2020 | 4.58 | **3.11** (−33 %) |
 > | Autumn 2020 | 4.68 | 4.68 (heat wave) |
 >
-> - RK fitted lapse rate ≈ **−5 to −7 °C / km**  ←  matches atmospheric lapse rate
+> - RK fitted lapse rate ≈ **−5 to −7 °C / km** ← matches atmospheric lapse rate
 > - Pooled RK scatter (summer): **R² = 0.83**
 >
 > *Images:* `slide5_rmse_mae_bars.png`, `slide5_scatter_and_errors.png`, `slide5_final_summary.png`
@@ -168,7 +168,7 @@ Total plan: **~10 min of speaking** across 5 content slides + title + conclusion
 >
 > [middle plot, hexbin] Here's the pooled scatter for regression kriging in summer. Across all 29 stations and 168 hours, predictions sit tight on the 1:1 line with R² = 0.83. The right panel is the error distribution — centred near zero with standard deviation 2.6 °C.
 >
-> [right plot, summary] This final bar chart is every experiment in the project at a glance. On the left, the synthetic gold standard — 0.15 °C RMSE with 44 dense sensors in a 1 km box. In the middle, real-data regression kriging at about 3 °C. On the right the HPWREN single-sensor benchmark, which is large and noisy because we had to **infer** that sensor's coordinates from its pressure signature."
+> [right plot, summary] This final bar chart is every experiment in the project at a glance. On the left, the synthetic gold standard — 0.15 °C RMSE with 44 dense sensors in a 1 km box. In the middle, real-data regression kriging at about 3 °C. On the right, the Kaggle HPWREN single-sensor benchmark, which is large and noisy because we had to **infer** that sensor's coordinates from its pressure signature."
 
 ---
 
@@ -178,7 +178,7 @@ Total plan: **~10 min of speaking** across 5 content slides + title + conclusion
 
 > ### Take-aways
 >
-> - Spatio-temporal kriging from public weather stations works: **~2 °C RMSE** at an inland held-out site
+> - Spatio-temporal kriging from public weather stations works: **~2 °C RMSE** at a held-out inland site (Ramona)
 > - Elevation detrending cuts pooled RMSE by ~33 % in summer
 > - Recovered lapse rate matches atmospheric physics (−5 to −7 °C / km)
 > - But regional kriging **cannot replace** an on-site sensor when the site has its own microclimate
@@ -187,11 +187,11 @@ Total plan: **~10 min of speaking** across 5 content slides + title + conclusion
 
 **Say (≈45 s):**
 
-> "To wrap up. Spatio-temporal kriging with the sum-metric variogram is a viable, interpretable, reproducible method for predicting temperature at a site without a sensor. With 29 free public weather stations around San Diego, we get RMSE of about 2 °C at a held-out inland site, and **3 °C pooled across all 29 stations** when we include the elevation trend.
+> "To wrap up. Spatio-temporal kriging with the sum-metric variogram is a viable, interpretable, reproducible method for predicting temperature at a site without a sensor. With 29 free public weather stations around San Diego we get RMSE of about 2 °C at a held-out inland site like Ramona, and **3 °C pooled across all 29 stations** when we include the elevation trend.
 >
 > Elevation matters a lot — plain OK gives 4.6 °C RMSE, regression kriging gives 3.1, and the fitted elevation slope reproduces the textbook lapse rate from data alone.
 >
-> The practical message from the paper holds on a different region and dataset: public weather stations are a reasonable substitute for on-site sensors when you don't have them, but only to the accuracy of a few degrees — for **site-specific microclimate** you still want a local sensor.
+> The practical message from the paper holds: public weather stations are a reasonable substitute for on-site sensors when you don't have them, but only to the accuracy of a few degrees — for **site-specific microclimate** you still want a local sensor.
 >
 > The full code, tests, and notebook are on GitHub at the repo shown. Thanks — happy to take questions."
 
@@ -199,19 +199,17 @@ Total plan: **~10 min of speaking** across 5 content slides + title + conclusion
 
 ## Q&A preparation (not on slides — just in case)
 
-Likely questions and one-liner answers:
+1. **Why Ramona and not San Diego Airport?**
+   I initially tried San Diego International Airport, but it has a small marine-layer diurnal swing while most of its neighbours are inland with large swings. The kriging over-predicted amplitude and got a negative R². Ramona is inland at 425 m surrounded by similar inland neighbours, so the prediction works well.
 
-1. **Why 29 stations and not 44 like the paper?**
+2. **Why 29 stations and not 44 like the paper?**
    The paper used 24 weather stations + 44 local greenhouse sensors. We do not have a local sensor array in San Diego, so we use 29 NOAA stations and imitate the "local vs remote" comparison with a near-10 vs far-10 subset experiment in the main notebook.
-
-2. **Why did you pick 33.1 °N, −116.6 °W as the target?**
-   It is the inferred location of the HPWREN Minute Weather sensor from the Kaggle dataset the class was originally pointed to — chosen to match its ~860 m elevation from the pressure signature of 917 mbar.
 
 3. **Why did ordinary kriging do so poorly in autumn 2020?**
    A heat wave dominated that week; variance was spatially uniform, so the elevation trend that helps in summer carries no additional information.
 
 4. **What's the anisotropy scale k?**
-   It is a fitted parameter in the sum-metric variogram that tells you how many kilometres of spatial distance equal one hour of temporal distance — essentially, at what scale do space and time become comparably dissimilar.
+   It's a fitted parameter in the sum-metric variogram that tells you how many kilometres of spatial distance are equivalent to one hour of temporal distance — essentially, at what scale do space and time become comparably dissimilar.
 
 5. **How do you know the regression kriging LOO is not leaking?**
    Every fold refits the elevation trend, the per-hour mean, and the sum-metric variogram from scratch using only the n−1 training stations. The held-out station never contributes to any of those quantities.
